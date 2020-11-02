@@ -1,9 +1,9 @@
 table! {
     reviews (id) {
         id -> Int4,
-        uid -> Nullable<Varchar>,
-        problem_name -> Nullable<Varchar>,
-        problem_url -> Nullable<Varchar>,
+        uid -> Varchar,
+        problem_name -> Varchar,
+        problem_url -> Varchar,
         comment -> Nullable<Varchar>,
     }
 }
@@ -11,8 +11,8 @@ table! {
 table! {
     users (id) {
         id -> Int4,
-        uid -> Nullable<Varchar>,
-        user_name -> Nullable<Varchar>,
+        uid -> Varchar,
+        user_name -> Varchar,
     }
 }
 
