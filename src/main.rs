@@ -1,4 +1,4 @@
-extern crate rocket;
+mod db;
 
 fn main() {
     rocket::ignite().launch();
