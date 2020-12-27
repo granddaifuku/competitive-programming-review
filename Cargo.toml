@@ -10,6 +10,7 @@ edition = "2018"
 diesel = { version = "1.4.5", features = ["postgres"] }
 dotenv = "0.15.0"
 rocket = "0.4.5"
+validator = { version = "0.12", features = ["derive"] }
 
 [dependencies.rocket_contrib]
 version = "0.4.6"
