@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Init DB
-        run: pwd
+        run: cd ./src && pwd
         
       - name: Check out repository code
         uses: actions/checkout@v2
