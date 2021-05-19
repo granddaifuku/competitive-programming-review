@@ -31,8 +31,8 @@ jobs:
 
     steps:
       - name: Init DB
-        working-directory: .
-        run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
+        working-directory: ./config
+        run: psql -f ./init.sql postgres://postgres:password@localhost:5432/test
         
       - name: Check out repository code
         uses: actions/checkout@v2
