@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Init DB
         run: psql -f ./init.sql postgres://postgres:password@localhost:5432/test
-          working-directory: ./config
+        working-directory: ./config
           
         
       - name: Check out repository code
