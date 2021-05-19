@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Init DB
-        run: psql -f ../../config/init.sql postgres://postgres:password@localhost:5432/test
+        run: pwd 
         
       - name: Check out repository code
         uses: actions/checkout@v2
