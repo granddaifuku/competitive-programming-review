@@ -7,13 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = "0.4.5"
 sqlx = { version = "0.5.2", features = [ "postgres", "chrono", "runtime-tokio-rustls" ] }
 tokio = { version = "0.2.9", features = [ "full" ] }
 chrono = "0.4.19"
-
-
-[dependencies.rocket_contrib]
-version = "0.4.6"
-default-features = false
-features = ["uuid"]
+anyhow = "1.0.40"
+rocket = { git = "https://github.com/SergioBenitez/Rocket" }
