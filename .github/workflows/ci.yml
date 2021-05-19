@@ -1,0 +1,58 @@
+name: Test CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUST_TEST_THREADS: 1
+
+jobs:      
+  backend-test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+        
+      - name: init DB
+        run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
+
+      - name: check
+        run: cargo check
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy -- -D warnings
+
+      - name: build
+        run: cargo build --verbose
+
+      - name: test
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
+        run: cargo test --verbose

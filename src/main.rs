@@ -1,8 +1,6 @@
 mod config;
-mod db;
 
 use anyhow::Result;
-use rocket;
 use sqlx::postgres::PgPoolOptions;
 
 #[rocket::main]
