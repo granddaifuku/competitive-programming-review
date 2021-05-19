@@ -4,61 +4,12 @@ on:
     branches: [main]
   pull_request:
 
-
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUST_TEST_THREADS: 1
 
-jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-          
+jobs:      
   backend-test:
     runs-on: ubuntu-latest
 
@@ -86,13 +37,22 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v2
         
-      - name: Initialize DB
+      - name: init DB
         run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
 
-      - name: Build
-        run: cargo build --verbose
+      - name: check
+        run: cargo check
 
-      - name: Run Test
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy -- -D warnings
+
+      - name: build
+        run: cargo build --verbose      
+
+      - name: test
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
         run: cargo test --verbose
