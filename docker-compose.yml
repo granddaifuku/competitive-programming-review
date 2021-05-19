@@ -9,6 +9,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: test
+    volumes:
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
   server:
     build: .
     expose:
@@ -16,7 +18,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_URL: "postgres://postgres:password@postgres:5432/test"
+      DATABASE_URL: "postgres://postgres:password@postgres:5432/test"
     links:
       - "db"
     
