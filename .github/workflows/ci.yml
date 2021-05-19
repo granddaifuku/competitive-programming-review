@@ -14,6 +14,11 @@ jobs:
   backend-test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+
     services:
       postgres:
         image: postgres
@@ -31,9 +36,7 @@ jobs:
 
     steps:
       - name: Init DB
-        run: psql -f ./init.sql postgres://postgres:password@localhost:5432/test
-        working-directory: ./config
-          
+        run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
         
       - name: Check out repository code
         uses: actions/checkout@v2
