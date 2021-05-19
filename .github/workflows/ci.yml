@@ -35,11 +35,11 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Init DB
-        run: cd ./src && pwd
-        
       - name: Check out repository code
         uses: actions/checkout@v2
+        
+      - name: Init DB
+        run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
 
       - name: Build
         run: cargo build --verbose
