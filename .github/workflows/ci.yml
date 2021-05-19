@@ -1,0 +1,45 @@
+name: Test CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUST_TEST_THREADS: 1
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Init DB
+        run: paql -f config/init.sql postgres://postgres:password@localhost:5432/test
+        
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run Test
+        run: cargo test --verbose
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
