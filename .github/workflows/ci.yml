@@ -31,8 +31,9 @@ jobs:
 
     steps:
       - name: Init DB
-        working-directory: ./config
-        run: pwd
+        run: psql -f ./init.sql postgres://postgres:password@localhost:5432/test
+          working-directory: ./config
+          
         
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -41,6 +42,7 @@ jobs:
         run: cargo build --verbose
 
       - name: Run Test
-        run: cargo test --verbose
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
+        run: cargo test --verbose
+
