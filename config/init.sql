@@ -3,6 +3,8 @@ CREATE TABLE users (
   id BIGINT NOT NULL,
   user_name VARCHAR(255) NOT NULL,
   password VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  uid UUID NOT NULL,
   PRIMARY KEY (id)
 );
 
@@ -16,4 +18,14 @@ CREATE TABLE reviews (
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP,
   PRIMARY KEY( id)
+);
+
+DROP TABLE IF EXISTS tmp_users;
+CREATE TABLE tmp_users (
+  id BIGINT NOT NULL,
+  user_name VARCHAR(255) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  uid UUID NOT NULL,
+  created_at TIMESTAMP NOT NULL,
 );
