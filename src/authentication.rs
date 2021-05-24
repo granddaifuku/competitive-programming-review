@@ -11,14 +11,15 @@ pub struct NewUser {
     password: String,
 }
 
+#[allow(dead_code)]
 pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Result<(), ApiError> {
-    let is_registered = match is_already_regiseterd(pool.get_ref(), &form.user_name).await {
+    match is_already_regiseterd(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
                 return Ok(());
             }
         }
-        Err(e) => return Err(ApiError::InternalError),
+        Err(_) => return Err(ApiError::InternalError),
     };
 
     Ok(())
@@ -34,3 +35,5 @@ async fn is_already_regiseterd(pool: &PgPool, user_name: &str) -> Result<bool> {
         _ => Ok(true),
     }
 }
+
+async fn regist_temporarily(pool: &PgPool, user: NewUser) {}
