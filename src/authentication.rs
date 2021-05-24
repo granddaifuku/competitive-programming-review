@@ -1,8 +1,10 @@
 use super::error::ApiError;
 use actix_web::web;
 use anyhow::Result;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NewUser {
@@ -14,6 +16,15 @@ pub struct NewUser {
 #[allow(dead_code)]
 pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Result<(), ApiError> {
     match is_already_regiseterd(pool.get_ref(), &form.user_name).await {
+        Ok(f) => {
+            if f {
+                return Ok(());
+            }
+        }
+        Err(_) => return Err(ApiError::InternalError),
+    };
+
+    match is_already_registered_temporarily(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
                 return Ok(());
@@ -36,4 +47,28 @@ async fn is_already_regiseterd(pool: &PgPool, user_name: &str) -> Result<bool> {
     }
 }
 
-async fn regist_temporarily(pool: &PgPool, user: NewUser) {}
+async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -> Result<bool> {
+    let user = sqlx::query("SELECT * FROM tmp_users WHERE user_name = ?")
+        .bind(user_name)
+        .fetch_optional(pool)
+        .await?;
+    match user {
+        None => Ok(false),
+        _ => Ok(true),
+    }
+}
+
+async fn register_temporarily(pool: &PgPool, user: NewUser) -> Result<()> {
+    let uid = Uuid::new_v4();
+    let now = Utc::now().timestamp();
+    sqlx::query(r#"INSERT INTO tmp_user (user_name, password, uid, email, created_at) VALUES (?, ?, ?, ?, ?)"#)
+		.bind(user.user_name)
+		.bind(user.password)
+		.bind(user.email)
+		.bind(uid)
+		.bind(now)
+		.execute(pool)
+		.await?;
+
+    Ok(())
+}
