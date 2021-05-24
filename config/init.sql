@@ -14,10 +14,11 @@ CREATE TABLE reviews (
   problem_name VARCHAR(255) NOT NULL,
   url VARCHAR(255) NOT NULL,
   memo VARCHAR(255),
-  user_id VARCHAR(255) NOT NULL,
+  uid VARCHAR(255) NOT NULL,
+  platform VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP,
-  PRIMARY KEY( id)
+  PRIMARY KEY (id)
 );
 
 DROP TABLE IF EXISTS tmp_users;
@@ -28,4 +29,5 @@ CREATE TABLE tmp_users (
   email VARCHAR(255) NOT NULL,
   uid UUID NOT NULL,
   created_at TIMESTAMP NOT NULL,
+  PRIMARY KEY (id)
 );
