@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
         .max_connections(5)
         .connect(&config.database_url)
         .await?;
-    HttpServer::new(|| App::new())
+    HttpServer::new(App::new)
         .bind("127.0.0.1:8000")?
         .run()
         .await;
