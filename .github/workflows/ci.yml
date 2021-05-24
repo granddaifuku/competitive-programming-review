@@ -49,9 +49,6 @@ jobs:
       - name: clippy
         run: cargo clippy -- -D warnings
 
-      - name: build
-        run: cargo build --verbose
-
       - name: test
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
