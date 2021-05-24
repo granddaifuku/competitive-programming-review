@@ -1,23 +1,17 @@
-#[macro_use]
-extern crate rocket;
 mod authentication;
 mod config;
+mod error;
+mod model;
 
 use actix_web::{App, HttpServer};
 use anyhow::Result;
 use sqlx::postgres::PgPool;
-use std::sync::Arc;
 
 #[actix_web::main]
-#[allow(unused_variables)]
-#[allow(unused_must_use)]
 async fn main() -> Result<()> {
     let config = config::Config::new();
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&config.database_url)
-        .await?;
-    HttpServer::new(App::new)
+    let pool = PgPool::connect(&config.database_url).await?;
+    HttpServer::new(move || App::new().data(pool.clone()))
         .bind("127.0.0.1:8000")?
         .run()
         .await;

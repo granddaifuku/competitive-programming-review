@@ -493,6 +493,8 @@ dependencies = [
  "actix-web",
  "anyhow",
  "chrono",
+ "derive_more",
+ "serde",
  "sqlx",
  "tokio 0.2.25",
 ]
