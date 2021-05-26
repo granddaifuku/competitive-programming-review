@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
-  id BIGINT NOT NULL,
+  id SERIAL,
   user_name VARCHAR(255) NOT NULL,
   password VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
@@ -10,11 +10,11 @@ CREATE TABLE users (
 
 DROP TABLE IF EXISTS reviews;
 CREATE TABLE reviews (
-  id BIGINT NOT NULL,
+  id SERIAL,
   problem_name VARCHAR(255) NOT NULL,
   url VARCHAR(255) NOT NULL,
   memo VARCHAR(255),
-  uid VARCHAR(255) NOT NULL,
+  uid UUID NOT NULL,
   platform VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP,
@@ -23,7 +23,7 @@ CREATE TABLE reviews (
 
 DROP TABLE IF EXISTS tmp_users;
 CREATE TABLE tmp_users (
-  id BIGINT NOT NULL,
+  id SERIAL,
   user_name VARCHAR(255) NOT NULL,
   password VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,

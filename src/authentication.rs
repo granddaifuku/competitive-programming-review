@@ -1,17 +1,12 @@
 use super::error::{extract_field, ApiError};
+use super::utils::RE_ALP_NUM_SYM;
 use actix_web::web;
 use anyhow::Result;
 use chrono::Utc;
-use lazy_static;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
-
-lazy_static! {
-    static ref RE_ALP_NUM_SYM: Regex = Regex::new(r"^[a-zA-Z0-9!-/:-@¥\[-`{-~]*$").unwrap();
-}
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct NewUser {
@@ -218,6 +213,32 @@ mod tests {
             fields: vec!["password".to_string()],
         });
         let actual = sign_up(p, form).await;
+        assert_eq!(expected, actual);
+    }
+
+    #[actix_rt::test]
+    async fn is_already_registered_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid_example = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+    		.bind(uuid_example)
+    		.execute(&pool).await.unwrap();
+        let expected = true;
+        let actual = is_already_regiseterd(&pool, "test_user").await.unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[actix_rt::test]
+    async fn is_already_registered_not_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid_example = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+    		.bind(uuid_example)
+    		.execute(&pool).await.unwrap();
+        let expected = false;
+        let actual = is_already_regiseterd(&pool, "test_user").await.unwrap();
         assert_eq!(expected, actual);
     }
 }

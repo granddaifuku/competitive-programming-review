@@ -1,6 +1,7 @@
 mod authentication;
 mod config;
 mod error;
+mod utils;
 
 #[macro_use]
 extern crate lazy_static;
