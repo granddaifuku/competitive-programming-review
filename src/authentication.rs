@@ -28,7 +28,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
             })
         }
     }
-    match is_already_regiseterd(pool.get_ref(), &form.user_name).await {
+    match is_already_registered(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
                 return Ok(());
@@ -49,7 +49,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
     Ok(())
 }
 
-async fn is_already_regiseterd(pool: &PgPool, user_name: &str) -> Result<bool> {
+async fn is_already_registered(pool: &PgPool, user_name: &str) -> Result<bool> {
     let user = sqlx::query("SELECT * FROM users WHERE user_name = $1")
         .bind(user_name)
         .fetch_optional(pool)
@@ -226,7 +226,7 @@ mod tests {
     		.bind(uuid_example)
     		.execute(&pool).await.unwrap();
         let expected = true;
-        let actual = is_already_regiseterd(&pool, "test_user").await.unwrap();
+        let actual = is_already_registered(&pool, "test_user").await.unwrap();
         assert_eq!(expected, actual);
 
         utils::clear_table(&pool).await.unwrap();
@@ -241,7 +241,41 @@ mod tests {
     		.bind(uuid_example)
     		.execute(&pool).await.unwrap();
         let expected = false;
-        let actual = is_already_regiseterd(&pool, "test_user_not_exist")
+        let actual = is_already_registered(&pool, "test_user_not_exist")
+            .await
+            .unwrap();
+        assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn is_already_registered_temporarily_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid_example = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+    		.bind(uuid_example)
+    		.execute(&pool).await.unwrap();
+        let expected = true;
+        let actual = is_already_registered_temporarily(&pool, "test_user")
+            .await
+            .unwrap();
+        assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn is_already_registered_temporarily_not_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid_example = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+    		.bind(uuid_example)
+    		.execute(&pool).await.unwrap();
+        let expected = false;
+        let actual = is_already_registered_temporarily(&pool, "test_user_not_exist")
             .await
             .unwrap();
         assert_eq!(expected, actual);
