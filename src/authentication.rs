@@ -50,9 +50,11 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
         Err(_) => return Err(ApiError::InternalError),
     };
 
+    let uid = Uuid::new_v4();
+
     // insert the user to temporarily registered users table
     let new_user = form.into_inner();
-    match register_temporarily(pool.get_ref(), new_user).await {
+    match register_temporarily(pool.get_ref(), new_user, uid).await {
         Ok(_) => (),
         Err(_) => return Err(ApiError::InternalError),
     };
@@ -82,8 +84,7 @@ async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -> Re
     }
 }
 
-async fn register_temporarily(pool: &PgPool, user: NewUser) -> Result<()> {
-    let uid = Uuid::new_v4();
+async fn register_temporarily(pool: &PgPool, user: NewUser, uid: Uuid) -> Result<()> {
     let now = Utc::now();
     let hashed_password = hash(user.password, DEFAULT_COST).unwrap();
     sqlx::query(r#"INSERT INTO tmp_users (user_name, password, uid, email, created_at) VALUES ($1, $2, $3, $4, $5)"#)
@@ -308,12 +309,14 @@ mod tests {
             email: "test@gmail.com".to_string(),
             password: "password".to_string(),
         };
+        let uid = Uuid::new_v4();
+        let uid_clone = uid.clone();
         let tmp_users_before = sqlx::query("SELECT * FROM tmp_users")
             .fetch_all(&pool)
             .await
             .unwrap();
         assert_eq!(0, tmp_users_before.len());
-        register_temporarily(&pool, user).await.unwrap();
+        register_temporarily(&pool, user, uid).await.unwrap();
 
         let tmp_users_after = sqlx::query!("SELECT * FROM tmp_users where user_name = 'user_name'")
             .fetch_one(&pool)
@@ -322,6 +325,7 @@ mod tests {
         assert_eq!("user_name".to_string(), tmp_users_after.user_name);
         assert_eq!("test@gmail.com".to_string(), tmp_users_after.email);
         assert_eq!(true, verify("password", &tmp_users_after.password).unwrap());
+        assert_eq!(uid_clone, tmp_users_after.uid);
 
         utils::clear_table(&pool).await.unwrap();
     }
