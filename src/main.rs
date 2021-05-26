@@ -2,6 +2,9 @@ mod authentication;
 mod config;
 mod error;
 
+#[macro_use]
+extern crate lazy_static;
+
 use actix_web::{App, HttpServer};
 use anyhow::Result;
 use sqlx::postgres::PgPool;
