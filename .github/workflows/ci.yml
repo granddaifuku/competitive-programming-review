@@ -52,4 +52,4 @@ jobs:
       - name: test
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
-        run: cargo test --verbose
+        run: cargo test --verbose -- --test-threads=1

@@ -16,7 +16,7 @@ pub async fn clear_table(pool: &PgPool) -> Result<()> {
         "tmp_users".to_string(),
     ];
     for table in tables {
-        // cannot bind table and thus prepare sql string
+        // cannot bind the table and thus prepare the sql
         let sql = format!("DELETE FROM {}", table);
         sqlx::query(&sql).bind(table).execute(pool).await.unwrap();
     }

@@ -50,7 +50,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
 }
 
 async fn is_already_regiseterd(pool: &PgPool, user_name: &str) -> Result<bool> {
-    let user = sqlx::query("SELECT * FROM users WHERE user_name = ?")
+    let user = sqlx::query("SELECT * FROM users WHERE user_name = $1")
         .bind(user_name)
         .fetch_optional(pool)
         .await?;
@@ -61,7 +61,7 @@ async fn is_already_regiseterd(pool: &PgPool, user_name: &str) -> Result<bool> {
 }
 
 async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -> Result<bool> {
-    let user = sqlx::query("SELECT * FROM tmp_users WHERE user_name = ?")
+    let user = sqlx::query("SELECT * FROM tmp_users WHERE user_name = $1")
         .bind(user_name)
         .fetch_optional(pool)
         .await?;
@@ -90,6 +90,7 @@ async fn register_temporarily(pool: &PgPool, user: NewUser) -> Result<()> {
 mod tests {
     use super::*;
     use crate::config;
+    use crate::utils;
 
     #[actix_rt::test]
     async fn user_name_invalid_min_length() {
@@ -227,6 +228,8 @@ mod tests {
         let expected = true;
         let actual = is_already_regiseterd(&pool, "test_user").await.unwrap();
         assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
     }
 
     #[actix_rt::test]
@@ -238,7 +241,11 @@ mod tests {
     		.bind(uuid_example)
     		.execute(&pool).await.unwrap();
         let expected = false;
-        let actual = is_already_regiseterd(&pool, "test_user").await.unwrap();
+        let actual = is_already_regiseterd(&pool, "test_user_not_exist")
+            .await
+            .unwrap();
         assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
     }
 }
