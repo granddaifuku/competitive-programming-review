@@ -2,6 +2,7 @@ use super::error::{extract_field, ApiError};
 use super::utils::RE_ALP_NUM_SYM;
 use actix_web::web;
 use anyhow::Result;
+use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -28,6 +29,8 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
             })
         }
     }
+
+    // check the user is already registered
     match is_already_registered(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
@@ -37,12 +40,20 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
         Err(_) => return Err(ApiError::InternalError),
     };
 
+    // check the user is already temporarily registered
     match is_already_registered_temporarily(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
                 return Ok(());
             }
         }
+        Err(_) => return Err(ApiError::InternalError),
+    };
+
+    // insert the user to temporarily registered users table
+    let new_user = form.into_inner();
+    match register_temporarily(pool.get_ref(), new_user).await {
+        Ok(_) => (),
         Err(_) => return Err(ApiError::InternalError),
     };
 
@@ -74,11 +85,12 @@ async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -> Re
 async fn register_temporarily(pool: &PgPool, user: NewUser) -> Result<()> {
     let uid = Uuid::new_v4();
     let now = Utc::now();
-    sqlx::query(r#"INSERT INTO tmp_user (user_name, password, uid, email, created_at) VALUES (?, ?, ?, ?, ?)"#)
+    let hashed_password = hash(user.password, DEFAULT_COST).unwrap();
+    sqlx::query(r#"INSERT INTO tmp_users (user_name, password, uid, email, created_at) VALUES ($1, $2, $3, $4, $5)"#)
 		.bind(user.user_name)
-		.bind(user.password)
-		.bind(user.email)
+		.bind(hashed_password)
 		.bind(uid)
+		.bind(user.email)
 		.bind(now)
 		.execute(pool)
 		.await?;
@@ -283,6 +295,33 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn register_temporarily_create() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let user = NewUser {
+            user_name: "user_name".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        let tmp_users_before = sqlx::query("SELECT * FROM tmp_users")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(0, tmp_users_before.len());
+        register_temporarily(&pool, user).await.unwrap();
+
+        let tmp_users_after = sqlx::query!("SELECT * FROM tmp_users where user_name = 'user_name'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!("user_name".to_string(), tmp_users_after.user_name);
+        assert_eq!("test@gmail.com".to_string(), tmp_users_after.email);
+        assert_eq!(true, verify("password", &tmp_users_after.password).unwrap());
 
         utils::clear_table(&pool).await.unwrap();
     }
