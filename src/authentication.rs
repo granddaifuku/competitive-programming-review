@@ -1,6 +1,6 @@
 use super::error::{extract_field, ApiError};
 use super::utils::RE_ALP_NUM_SYM;
-use actix_web::web;
+use actix_web::{web, HttpResponse};
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
@@ -20,7 +20,10 @@ pub struct NewUser {
 }
 
 #[allow(dead_code)]
-pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Result<(), ApiError> {
+pub async fn sign_up(
+    pool: web::Data<PgPool>,
+    form: web::Form<NewUser>,
+) -> Result<HttpResponse, ApiError> {
     match form.validate() {
         Ok(_) => (),
         Err(e) => {
@@ -34,7 +37,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
     match is_already_registered(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
-                return Ok(());
+                return Ok(HttpResponse::Ok().finish());
             }
         }
         Err(_) => return Err(ApiError::InternalError),
@@ -44,7 +47,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
     match is_already_registered_temporarily(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
-                return Ok(());
+                return Ok(HttpResponse::Ok().finish());
             }
         }
         Err(_) => return Err(ApiError::InternalError),
@@ -59,7 +62,7 @@ pub async fn sign_up(pool: web::Data<PgPool>, form: web::Form<NewUser>) -> Resul
         Err(_) => return Err(ApiError::InternalError),
     };
 
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 async fn is_already_registered(pool: &PgPool, user_name: &str) -> Result<bool> {

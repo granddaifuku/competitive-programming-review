@@ -2,6 +2,8 @@ use actix_web::{dev::HttpResponseBuilder, error, http::header, http::StatusCode,
 use derive_more::{Display, Error};
 use validator::ValidationErrors;
 
+// TODO remove the attribute
+#[allow(dead_code)]
 #[derive(Debug, Display, Error, PartialEq)]
 pub enum ApiError {
     #[display(fmt = "internal error")]
