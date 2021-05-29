@@ -119,10 +119,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["user_name".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
@@ -137,10 +137,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["user_name".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
     #[actix_rt::test]
@@ -154,10 +154,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["user_name".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
@@ -172,10 +172,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["email".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
@@ -190,10 +190,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["password".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
@@ -208,10 +208,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["password".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
@@ -226,10 +226,10 @@ mod tests {
         };
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
-        let expected = Err(ApiError::ValidationError {
+        let expected = ApiError::ValidationError {
             fields: vec!["password".to_string()],
-        });
-        let actual = sign_up(p, form).await;
+        };
+        let actual = sign_up(p, form).await.unwrap_err();
         assert_eq!(expected, actual);
     }
 
