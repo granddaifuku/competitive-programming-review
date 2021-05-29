@@ -1,5 +1,5 @@
-use super::error::{extract_field, ApiError};
-use super::utils::RE_ALP_NUM_SYM;
+use crate::error::{extract_field, ApiError};
+use crate::utils::RE_ALP_NUM_SYM;
 use actix_web::{web, HttpResponse};
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -61,6 +61,8 @@ pub async fn sign_up(
         Ok(_) => (),
         Err(_) => return Err(ApiError::InternalError),
     };
+
+    // send mail
 
     Ok(HttpResponse::Ok().finish())
 }

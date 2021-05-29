@@ -1,6 +1,6 @@
-mod authentication;
 mod config;
 mod error;
+mod users;
 mod utils;
 
 #[macro_use]
