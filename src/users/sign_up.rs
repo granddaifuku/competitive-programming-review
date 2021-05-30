@@ -1,9 +1,12 @@
+use crate::config;
 use crate::error::{extract_field, ApiError};
 use crate::utils::RE_ALP_NUM_SYM;
 use actix_web::{web, HttpResponse};
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -55,14 +58,22 @@ pub async fn sign_up(
 
     let uid = Uuid::new_v4();
 
+    // send mail
+    match send_mail(&form.user_name, &form.email, &uid).await {
+        Ok(f) => {
+            if !f {
+                return Err(ApiError::BadRequest);
+            }
+        }
+        Err(_) => return Err(ApiError::InternalError),
+    }
+
     // insert the user to temporarily registered users table
     let new_user = form.into_inner();
     match register_temporarily(pool.get_ref(), new_user, uid).await {
         Ok(_) => (),
         Err(_) => return Err(ApiError::InternalError),
     };
-
-    // send mail
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -86,6 +97,34 @@ async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -> Re
     match user {
         None => Ok(false),
         _ => Ok(true),
+    }
+}
+
+async fn send_mail(user_name: &str, mail_address: &str, uid: &Uuid) -> Result<bool> {
+    let config = config::Config::new();
+    let body = format!(
+        "Hi {}! Verify your account by clicking on https://verify/uid={}",
+        user_name, uid
+    );
+    let email = Message::builder()
+        .from(
+            "Competitive Programming Review Admin <info@granddaifuku.com>"
+                .parse()
+                .unwrap(),
+        )
+        .to(mail_address.parse().unwrap())
+        .subject("[DO NOT REPLY] SIGN-UP")
+        .body(String::from(body))
+        .unwrap();
+    let creds = Credentials::new(config.smtp_username, config.smtp_password);
+
+    let mailer = SmtpTransport::starttls_relay(&config.mailer)
+        .unwrap()
+        .credentials(creds)
+        .build();
+    match mailer.send(&email) {
+        Ok(_) => Ok(true),
+        _ => Ok(false),
     }
 }
 
@@ -303,6 +342,17 @@ mod tests {
         assert_eq!(expected, actual);
 
         utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn send_mail_ok() {
+        let user_name = "dummy_user";
+        let mail_address = "dummy_mail";
+        let uid = Uuid::new_v4();
+        let expected = true;
+        let actual = send_mail(user_name, mail_address, &uid).await.unwrap();
+        assert_eq!(expected, actual);
     }
 
     #[actix_rt::test]
