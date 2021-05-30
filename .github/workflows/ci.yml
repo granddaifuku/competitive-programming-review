@@ -52,4 +52,7 @@ jobs:
       - name: test
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
+          SMTP_USERNAME: "dummy_username"
+          SMTP_PASSWORD: "dummy_password"
+          MAILER: "dummy_mailer"
         run: cargo test --verbose -- --test-threads=1
