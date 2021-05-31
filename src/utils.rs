@@ -45,7 +45,7 @@ mod tests {
 			.await
 			.unwrap();
 
-        sqlx::query(r#"INSERT INTO reviews (id, problem_name, url, memo, uid, platform, created_at, updated_at) VALUES (0, 'test_prob_name', 'test_url', 'test_memo', $1, 'test_platform', $2, $3)"#)
+        sqlx::query(r#"INSERT INTO reviews (id, problem_name, url, memo, uid, platform, created_at, updated_at) VALUES (0, 'test_prob_name', 'test_url', 'test_memo', $1, 1, $2, $3)"#)
 			.bind(uid)
 			.bind(now)
 			.bind(now)

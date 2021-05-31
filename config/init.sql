@@ -15,7 +15,7 @@ CREATE TABLE reviews (
   url VARCHAR(255) NOT NULL,
   memo VARCHAR(255),
   uid UUID NOT NULL,
-  platform VARCHAR(255) NOT NULL,
+  platform SMALLINT NOT NULL,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP,
   PRIMARY KEY (id)
