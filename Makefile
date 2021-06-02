@@ -5,4 +5,4 @@ test:
 	source ./tests/env.sh && cargo test -- --test-threads=1
 
 down:
-	docker compose down --rmi all
+	docker compose down --rmi all --volumes --remove-orphans

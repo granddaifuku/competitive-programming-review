@@ -73,6 +73,28 @@ pub async fn register_temporarily(pool: &PgPool, user: NewUser, uid: Uuid) -> Re
     Ok(())
 }
 
+pub async fn check_temporarily_table(pool: &PgPool, uid: &Uuid) -> Option<NewUser> {
+    let user = sqlx::query!(
+        "SELECT user_name, password, email FROM tmp_users WHERE uid = $1",
+        uid
+    )
+    .fetch_optional(pool)
+    .await
+    .ok()?;
+
+    match user {
+        None => None,
+        Some(u) => {
+            let new_user = NewUser {
+                user_name: u.user_name,
+                email: u.email,
+                password: u.password,
+            };
+            Some(new_user)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,6 +207,56 @@ mod tests {
         assert_eq!("test@gmail.com".to_string(), tmp_users_after.email);
         assert_eq!(true, verify("password", &tmp_users_after.password).unwrap());
         assert_eq!(uid_clone, tmp_users_after.uid);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn check_temporarily_table_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid = Uuid::new_v4();
+        let now = Utc::now();
+
+        // insert predataset
+        sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
+			.bind(&uuid)
+			.bind(now)
+			.execute(&pool)
+			.await
+			.unwrap();
+
+        let expected = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+
+        let actual = check_temporarily_table(&pool, &uuid).await.unwrap();
+        assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn check_temporarily_table_not_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid = Uuid::new_v4();
+        let now = Utc::now();
+
+        // insert predataset
+        sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
+			.bind(&uuid)
+			.bind(now)
+			.execute(&pool)
+			.await
+			.unwrap();
+
+        let uuid_not_exist = Uuid::new_v4();
+        assert!(check_temporarily_table(&pool, &uuid_not_exist)
+            .await
+            .is_none());
 
         utils::clear_table(&pool).await.unwrap();
     }

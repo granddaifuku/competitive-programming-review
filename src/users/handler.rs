@@ -1,7 +1,7 @@
 use super::infrastructures;
 use super::model::NewUser;
 use crate::error::{extract_field, ApiError};
-use actix_web::{web, HttpResponse};
+use actix_web::{get, web, HttpResponse};
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -64,6 +64,16 @@ pub async fn sign_up(
     Ok(HttpResponse::Ok().finish())
 }
 
+#[allow(dead_code)]
+#[get("/verify/{uid}")]
+pub async fn verify_user(
+    pool: web::Data<PgPool>,
+    web::Path(uid): web::Path<Uuid>,
+) -> Result<HttpResponse, ApiError> {
+    // check if user is in the temporarily registered table
+    Ok(HttpResponse::Ok().finish())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,10 +102,10 @@ mod tests {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await;
         let user = NewUser {
-            user_name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-            email: "test@gmail.com".to_string(),
-            password: "password".to_string(),
-        };
+			user_name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+			email: "test@gmail.com".to_string(),
+			password: "password".to_string(),
+		};
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
         let expected = ApiError::ValidationError {
@@ -163,10 +173,10 @@ mod tests {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await;
         let user = NewUser {
-            user_name: "user_name".to_string(),
-            email: "test@gmail.com".to_string(),
-            password: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-        };
+			user_name: "user_name".to_string(),
+			email: "test@gmail.com".to_string(),
+			password: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+		};
         let form = web::Form(user);
         let p = web::Data::new(pool.unwrap());
         let expected = ApiError::ValidationError {
