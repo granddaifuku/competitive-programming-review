@@ -70,6 +70,16 @@ pub async fn verify_user(
     pool: web::Data<PgPool>,
     web::Path(uid): web::Path<Uuid>,
 ) -> Result<HttpResponse, ApiError> {
+    match infrastructures::extract_temporarily_table(pool.get_ref(), &uid).await {
+        Err(f) => {
+            if f {
+                return Err(ApiError::InternalError);
+            } else {
+                return Err(ApiError::InternalError);
+            }
+        }
+        Ok(_) => (),
+    }
     // check if user is in the temporarily registered table
     Ok(HttpResponse::Ok().finish())
 }

@@ -73,26 +73,48 @@ pub async fn register_temporarily(pool: &PgPool, user: NewUser, uid: Uuid) -> Re
     Ok(())
 }
 
-pub async fn check_temporarily_table(pool: &PgPool, uid: &Uuid) -> Option<NewUser> {
+pub async fn extract_temporarily_table(pool: &PgPool, uid: &Uuid) -> Result<NewUser, bool> {
     let user = sqlx::query!(
         "SELECT user_name, password, email FROM tmp_users WHERE uid = $1",
         uid
     )
     .fetch_optional(pool)
-    .await
-    .ok()?;
+    .await;
+    if user.is_err() {
+        return Err(false);
+    }
 
-    match user {
-        None => None,
+    match user.unwrap() {
+        None => Err(true),
         Some(u) => {
+            if sqlx::query("DELETE FROM tmp_users WHERE uid = $1")
+                .bind(uid)
+                .execute(pool)
+                .await
+                .is_err()
+            {
+                return Err(false);
+            }
             let new_user = NewUser {
                 user_name: u.user_name,
                 email: u.email,
                 password: u.password,
             };
-            Some(new_user)
+            Ok(new_user)
         }
     }
+}
+
+pub async fn register_user(pool: &PgPool, user: NewUser, uid: &Uuid) -> Result<()> {
+    sqlx::query(r#"INSERT INTO users (user_name, password, email, uid) VALUES ($1, $2, $3, $4)"#)
+        .bind(user.user_name)
+        .bind(user.password)
+        .bind(user.email)
+        .bind(uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -212,7 +234,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn check_temporarily_table_exist() {
+    async fn extract_temporarily_table_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let uuid = Uuid::new_v4();
@@ -232,14 +254,20 @@ mod tests {
             password: "password".to_string(),
         };
 
-        let actual = check_temporarily_table(&pool, &uuid).await.unwrap();
+        let actual = extract_temporarily_table(&pool, &uuid).await.unwrap();
         assert_eq!(expected, actual);
+        let user = sqlx::query("SELECT * FROM tmp_users")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+        // check the user is deleted from the tmp_user table.
+        assert!(user.is_none());
 
         utils::clear_table(&pool).await.unwrap();
     }
 
     #[actix_rt::test]
-    async fn check_temporarily_table_not_exist() {
+    async fn extract_temporarily_table_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let uuid = Uuid::new_v4();
@@ -253,10 +281,52 @@ mod tests {
 			.await
 			.unwrap();
 
+        let expected = true;
         let uuid_not_exist = Uuid::new_v4();
-        assert!(check_temporarily_table(&pool, &uuid_not_exist)
+        let actual = extract_temporarily_table(&pool, &uuid_not_exist)
             .await
-            .is_none());
+            .unwrap_err();
+
+        assert_eq!(expected, actual);
+
+        let user = sqlx::query("SELECT * FROM tmp_users")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+        // check the user is still in the table
+        assert!(user.is_some());
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn register_user_test() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let uuid_example = Uuid::new_v4();
+
+        // check there's no record
+        let user_before = sqlx::query("SELECT * FROM users")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+        assert!(user_before.is_none());
+        let new_user = NewUser {
+            user_name: "user_name".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        register_user(&pool, new_user, &uuid_example).await.unwrap();
+
+        // check the user is inserted
+        let user_after = sqlx::query!("SELECT * FROM users")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(1, user_after.len());
+        assert_eq!("user_name".to_string(), user_after[0].user_name);
+        assert_eq!("test@gmail.com".to_string(), user_after[0].email);
+        assert_eq!("password".to_string(), user_after[0].password);
 
         utils::clear_table(&pool).await.unwrap();
     }
