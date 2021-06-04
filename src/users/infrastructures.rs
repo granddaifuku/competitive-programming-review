@@ -1,7 +1,7 @@
 use super::model::NewUser;
 use crate::config;
 use anyhow::Result;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{hash, DEFAULT_COST};
 use chrono::Utc;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};

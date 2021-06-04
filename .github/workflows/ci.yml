@@ -1,7 +1,6 @@
 name: Test CI
 on:
   push:
-    branches: [main]
   pull_request:
 
 env:
@@ -47,6 +46,8 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: clippy
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
         run: cargo clippy -- -D warnings
 
       - name: test

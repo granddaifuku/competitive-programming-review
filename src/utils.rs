@@ -1,5 +1,4 @@
 use anyhow::Result;
-use lazy_static;
 use regex::Regex;
 use sqlx::PgPool;
 
