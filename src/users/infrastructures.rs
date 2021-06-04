@@ -121,6 +121,7 @@ pub async fn register_user(pool: &PgPool, user: NewUser, uid: &Uuid) -> Result<(
 mod tests {
     use super::*;
     use crate::utils;
+    use bcrypt::verify;
 
     #[actix_rt::test]
     async fn is_already_registered_exist() {

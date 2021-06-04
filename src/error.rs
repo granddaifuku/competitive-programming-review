@@ -1,6 +1,13 @@
 use actix_web::{dev::HttpResponseBuilder, error, http::header, http::StatusCode, HttpResponse};
 use derive_more::{Display, Error};
+use serde::Serialize;
 use validator::ValidationErrors;
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    code: u16,
+    message: String,
+}
 
 // TODO remove the attribute
 #[allow(dead_code)]
@@ -21,9 +28,12 @@ pub enum ApiError {
 
 impl error::ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse {
-        HttpResponseBuilder::new(self.status_code())
-            .set_header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-            .body(self.to_string())
+        let status_code = self.status_code();
+        let error_response = ErrorResponse {
+            code: status_code.as_u16(),
+            message: self.to_string(),
+        };
+        HttpResponse::build(self.status_code()).json(error_response)
     }
 
     fn status_code(&self) -> StatusCode {

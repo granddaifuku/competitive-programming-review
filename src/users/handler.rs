@@ -1,13 +1,14 @@
 use super::infrastructures;
 use super::model::NewUser;
 use crate::error::{extract_field, ApiError};
-use actix_web::{get, web, HttpResponse};
+use actix_web::{get, post, web, HttpResponse};
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
 
 #[allow(dead_code)]
+#[post("/sign-up")]
 pub async fn sign_up(
     pool: web::Data<PgPool>,
     form: web::Form<NewUser>,
@@ -25,7 +26,7 @@ pub async fn sign_up(
     match infrastructures::is_already_registered(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
-                return Ok(HttpResponse::Ok().finish());
+                return Ok(HttpResponse::Ok().json(""));
             }
         }
         Err(_) => return Err(ApiError::InternalError),
@@ -36,7 +37,7 @@ pub async fn sign_up(
     {
         Ok(f) => {
             if f {
-                return Ok(HttpResponse::Ok().finish());
+                return Ok(HttpResponse::Ok().json(""));
             }
         }
         Err(_) => return Err(ApiError::InternalError),
@@ -61,7 +62,7 @@ pub async fn sign_up(
         Err(_) => return Err(ApiError::InternalError),
     };
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(""))
 }
 
 #[allow(dead_code)]
@@ -74,7 +75,7 @@ pub async fn verify_user(
     match infrastructures::extract_temporarily_table(pool.get_ref(), &uid).await {
         Err(f) => {
             if f {
-                return Err(ApiError::InternalError);
+                return Err(ApiError::BadRequest);
             } else {
                 return Err(ApiError::InternalError);
             }
@@ -87,136 +88,193 @@ pub async fn verify_user(
             }
         }
     }
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(""))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config;
+    use actix_web::{body::Body, test, App};
+    use serde_json::json;
 
     #[actix_rt::test]
     async fn user_name_invalid_min_length() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
             user_name: "".to_string(),
             email: "test@gmail.com".to_string(),
             password: "password".to_string(),
         };
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["user_name".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
     }
 
     #[actix_rt::test]
     async fn user_name_invalid_max_length() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
-			user_name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-			email: "test@gmail.com".to_string(),
-			password: "password".to_string(),
-		};
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["user_name".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+    		user_name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+    		email: "test@gmail.com".to_string(),
+    		password: "password".to_string(),
+    	};
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
     }
+
     #[actix_rt::test]
     async fn user_name_invalid_character() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
             user_name: "aaaあaaa".to_string(),
             email: "test@gmail.com".to_string(),
             password: "password".to_string(),
         };
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["user_name".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
     }
 
     #[actix_rt::test]
     async fn email_invalid() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
             user_name: "user_name".to_string(),
             email: "invalid_mail_example".to_string(),
             password: "password".to_string(),
         };
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["email".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(json!({"code": 400, "message": "validation error on field: [\"email\"]"})),
+            resp_body
+        );
     }
 
     #[actix_rt::test]
     async fn password_invalid_min_length() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
             user_name: "user_name".to_string(),
             email: "test@gmail.com".to_string(),
             password: "".to_string(),
         };
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["password".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
     }
 
     #[actix_rt::test]
     async fn password_invalid_max_length() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
-			user_name: "user_name".to_string(),
-			email: "test@gmail.com".to_string(),
-			password: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-		};
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["password".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+    		user_name: "user_name".to_string(),
+    		email: "test@gmail.com".to_string(),
+    		password: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+    	};
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
     }
 
     #[actix_rt::test]
     async fn password_invalid_character() {
         let config = config::Config::new();
-        let pool = PgPool::connect(&config.database_url).await;
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
         let user = NewUser {
             user_name: "user_name".to_string(),
             email: "test@gmail.com".to_string(),
             password: "aaaあaaa".to_string(),
         };
-        let form = web::Form(user);
-        let p = web::Data::new(pool.unwrap());
-        let expected = ApiError::ValidationError {
-            fields: vec!["password".to_string()],
-        };
-        let actual = sign_up(p, form).await.unwrap_err();
-        assert_eq!(expected, actual);
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
     }
 }
