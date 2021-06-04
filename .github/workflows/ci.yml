@@ -40,6 +40,8 @@ jobs:
         run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
 
       - name: check
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
         run: cargo check
 
       - name: fmt
