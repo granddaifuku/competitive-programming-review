@@ -33,7 +33,7 @@ pub async fn is_already_registered_temporarily(pool: &PgPool, user_name: &str) -
 pub async fn send_mail(user_name: &str, mail_address: &str, uid: &Uuid) -> Result<bool> {
     let config = config::Config::new();
     let body = format!(
-        "Hi {}! Verify your account by clicking on https://verify/uid={}",
+        "Hi {}! Verify your account by clicking on https://verify/{}",
         user_name, uid
     );
     let email = Message::builder()
