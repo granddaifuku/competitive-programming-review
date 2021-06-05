@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use crate::{config, utils};
     use actix_web::{body::Body, test, App};
+    use bcrypt::verify;
     use chrono::Utc;
     use serde_json::json;
 
@@ -342,7 +343,65 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn verify_new_user_not_exist() {
+    async fn sign_up_failed_mail_sending() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
+        let user = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(json!({"code": 400, "message": "bad request"})),
+            resp_body
+        );
+    }
+
+    #[ignore]
+    #[actix_rt::test]
+    async fn sign_up_ok() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
+        let user = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(200, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(&Body::from(json!("")), resp_body);
+
+        // check the user is inserted tmp_users table.
+        let tmp_user = sqlx::query!("SELECT * FROM tmp_users")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(1, tmp_user.len());
+        assert_eq!("test_user".to_string(), tmp_user[0].user_name);
+        assert_eq!("test@gmail.com".to_string(), tmp_user[0].email);
+        assert!(verify("password", &tmp_user[0].password).unwrap());
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn verify_user_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(verify_user)).await;
@@ -360,7 +419,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn verify_new_user() {
+    async fn verify_user_ok() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
 

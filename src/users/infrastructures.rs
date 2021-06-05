@@ -228,7 +228,7 @@ mod tests {
             .unwrap();
         assert_eq!("user_name".to_string(), tmp_users_after.user_name);
         assert_eq!("test@gmail.com".to_string(), tmp_users_after.email);
-        assert_eq!(true, verify("password", &tmp_users_after.password).unwrap());
+        assert!(verify("password", &tmp_users_after.password).unwrap());
         assert_eq!(uid_clone, tmp_users_after.uid);
 
         utils::clear_table(&pool).await.unwrap();
