@@ -26,7 +26,7 @@ pub async fn sign_up(
     match infrastructures::is_already_registered(pool.get_ref(), &form.user_name).await {
         Ok(f) => {
             if f {
-                return Ok(HttpResponse::Ok().json(""));
+                return Ok(HttpResponse::Accepted().json(""));
             }
         }
         Err(_) => return Err(ApiError::InternalError),
@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use crate::{config, utils};
     use actix_web::{body::Body, test, App};
+    use chrono::Utc;
     use serde_json::json;
 
     #[actix_rt::test]
@@ -276,6 +277,68 @@ mod tests {
             ),
             resp_body
         );
+    }
+
+    #[actix_rt::test]
+    async fn sign_up_already_registered() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
+        // insert predataset
+        let uid = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+			.bind(&uid)
+			.execute(&pool)
+			.await
+			.unwrap();
+        let user = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(202, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(&Body::from(json!("")), resp_body);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn sign_up_already_registered_temporarily() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
+        // insert predataset
+        let uid = Uuid::new_v4();
+        let now = Utc::now();
+        sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
+			.bind(&uid)
+			.bind(now)
+			.execute(&pool)
+			.await
+			.unwrap();
+        let user = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/sign-up")
+            .set_form(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(200, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(&Body::from(json!("")), resp_body);
+
+        utils::clear_table(&pool).await.unwrap();
     }
 
     #[actix_rt::test]
