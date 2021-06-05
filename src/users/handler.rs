@@ -7,7 +7,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
 
-#[allow(dead_code)]
 #[post("/sign-up")]
 pub async fn sign_up(
     pool: web::Data<PgPool>,
@@ -65,7 +64,6 @@ pub async fn sign_up(
     Ok(HttpResponse::Ok().json(""))
 }
 
-#[allow(dead_code)]
 #[get("/verify/{uid}")]
 pub async fn verify_user(
     pool: web::Data<PgPool>,
