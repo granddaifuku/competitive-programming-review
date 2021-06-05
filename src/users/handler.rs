@@ -94,7 +94,7 @@ pub async fn verify_user(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config;
+    use crate::{config, utils};
     use actix_web::{body::Body, test, App};
     use serde_json::json;
 
@@ -276,5 +276,68 @@ mod tests {
             ),
             resp_body
         );
+    }
+
+    #[actix_rt::test]
+    async fn verify_new_user_not_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(App::new().data(pool.clone()).service(verify_user)).await;
+        let uid = Uuid::new_v4();
+        let uri = format!("/verify/{}", uid);
+        let req = test::TestRequest::get().uri(&uri).to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(json!({"code": 400, "message": "bad request"})),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn verify_new_user() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+
+        // insert predataset
+        let uid = Uuid::new_v4();
+        let now = chrono::Utc::now();
+        sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
+			.bind(&uid)
+			.bind(now)
+			.execute(&pool)
+			.await
+			.unwrap();
+
+        let mut app = test::init_service(App::new().data(pool.clone()).service(verify_user)).await;
+        let uri = format!("/verify/{}", &uid);
+        let req = test::TestRequest::get().uri(&uri).to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(200, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(&Body::from(json!("")), resp_body);
+
+        // check the user is deleted from tmp_users table.
+        let tmp_user = sqlx::query!("SELECT * FROM tmp_users")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(0, tmp_user.len());
+
+        // check the user is inserted to the users table.
+        let user = sqlx::query!("SELECT * FROM users")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(1, user.len());
+        assert_eq!("test_user".to_string(), user[0].user_name);
+        assert_eq!("test@gmail.com".to_string(), user[0].email);
+        assert_eq!("password".to_string(), user[0].password);
+        assert_eq!(uid, user[0].uid);
+
+        utils::clear_table(&pool).await.unwrap();
     }
 }
