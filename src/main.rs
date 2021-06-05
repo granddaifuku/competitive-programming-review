@@ -19,6 +19,7 @@ async fn main() -> Result<()> {
         App::new()
             .data(pool.clone())
             .service(users::handler::sign_up)
+            .service(users::handler::verify_user)
     })
     .bind("127.0.0.1:8000")?
     .run()
