@@ -1,7 +1,6 @@
 name: Test CI
 on:
   push:
-    branches: [main]
   pull_request:
 
 env:
@@ -41,15 +40,22 @@ jobs:
         run: psql -f ./config/init.sql postgres://postgres:password@localhost:5432/test
 
       - name: check
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
         run: cargo check
 
       - name: fmt
         run: cargo fmt --all -- --check
 
       - name: clippy
+        env:
+          DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
         run: cargo clippy -- -D warnings
 
       - name: test
         env:
           DATABASE_URL: "postgres://postgres:password@localhost:5432/test"
-        run: cargo test --verbose
+          SMTP_USERNAME: "dummy_username"
+          SMTP_PASSWORD: "dummy_password"
+          MAILER: "dummy_mailer"
+        run: cargo test --verbose -- --test-threads=1
