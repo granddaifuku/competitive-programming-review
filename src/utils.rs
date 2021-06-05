@@ -8,6 +8,7 @@ lazy_static! {
 }
 
 // Clear table for testing
+#[allow(dead_code)]
 pub async fn clear_table(pool: &PgPool) -> Result<()> {
     let tables: Vec<String> = vec![
         "users".to_string(),
