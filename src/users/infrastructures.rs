@@ -44,7 +44,7 @@ pub async fn send_mail(user_name: &str, mail_address: &str, uid: &Uuid) -> Resul
         )
         .to(mail_address.parse().unwrap())
         .subject("[DO NOT REPLY] SIGN-UP")
-        .body(String::from(body))
+        .body(body)
         .unwrap();
     let creds = Credentials::new(config.smtp_username, config.smtp_password);
 
