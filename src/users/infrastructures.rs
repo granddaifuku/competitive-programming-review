@@ -137,10 +137,13 @@ mod tests {
     async fn is_already_registered_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid_example = Uuid::new_v4();
+
+        // insert predataset
+        let uid_example = Uuid::new_v4();
         sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
-    		.bind(uuid_example)
+    		.bind(uid_example)
     		.execute(&pool).await.unwrap();
+
         let expected = true;
         let actual = is_already_registered(&pool, "test_user").await.unwrap();
         assert_eq!(expected, actual);
@@ -152,10 +155,13 @@ mod tests {
     async fn is_already_registered_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid_example = Uuid::new_v4();
+
+        // insert predataset
+        let uid_example = Uuid::new_v4();
         sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
-    		.bind(uuid_example)
+    		.bind(uid_example)
     		.execute(&pool).await.unwrap();
+
         let expected = false;
         let actual = is_already_registered(&pool, "test_user_not_exist")
             .await
@@ -169,12 +175,15 @@ mod tests {
     async fn is_already_registered_temporarily_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid_example = Uuid::new_v4();
+
+        // insert predataset
+        let uid_example = Uuid::new_v4();
         let now = Utc::now();
         sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
-    		.bind(uuid_example)
+    		.bind(uid_example)
 			.bind(now)
     		.execute(&pool).await.unwrap();
+
         let expected = true;
         let actual = is_already_registered_temporarily(&pool, "test_user")
             .await
@@ -188,12 +197,15 @@ mod tests {
     async fn is_already_registered_temporarily_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid_example = Uuid::new_v4();
+
+        // insert predataset
+        let uid_example = Uuid::new_v4();
         let now = Utc::now();
         sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
-    		.bind(uuid_example)
+    		.bind(uid_example)
 			.bind(now)
     		.execute(&pool).await.unwrap();
+
         let expected = false;
         let actual = is_already_registered_temporarily(&pool, "test_user_not_exist")
             .await
@@ -209,6 +221,7 @@ mod tests {
         let user_name = "dummy_user";
         let mail_address = "dummy_mail";
         let uid = Uuid::new_v4();
+
         let expected = true;
         let actual = send_mail(user_name, mail_address, &uid).await.unwrap();
         assert_eq!(expected, actual);
@@ -248,12 +261,12 @@ mod tests {
     async fn extract_temporarily_table_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid = Uuid::new_v4();
+        let uid = Uuid::new_v4();
         let now = Utc::now();
 
         // insert predataset
         sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
-			.bind(&uuid)
+			.bind(&uid)
 			.bind(now)
 			.execute(&pool)
 			.await
@@ -265,7 +278,7 @@ mod tests {
             password: "password".to_string(),
         };
 
-        let actual = extract_temporarily_table(&pool, &uuid).await.unwrap();
+        let actual = extract_temporarily_table(&pool, &uid).await.unwrap();
         assert_eq!(expected, actual);
         let user = sqlx::query("SELECT * FROM tmp_users")
             .fetch_optional(&pool)
@@ -281,20 +294,20 @@ mod tests {
     async fn extract_temporarily_table_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid = Uuid::new_v4();
+        let uid = Uuid::new_v4();
         let now = Utc::now();
 
         // insert predataset
         sqlx::query(r#"INSERT INTO tmp_users (id, user_name, password, email, uid, created_at) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1, $2)"#)
-			.bind(&uuid)
+			.bind(&uid)
 			.bind(now)
 			.execute(&pool)
 			.await
 			.unwrap();
 
         let expected = true;
-        let uuid_not_exist = Uuid::new_v4();
-        let actual = extract_temporarily_table(&pool, &uuid_not_exist)
+        let uid_not_exist = Uuid::new_v4();
+        let actual = extract_temporarily_table(&pool, &uid_not_exist)
             .await
             .unwrap_err();
 
@@ -314,7 +327,7 @@ mod tests {
     async fn register_user_test() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let uuid_example = Uuid::new_v4();
+        let uid_example = Uuid::new_v4();
 
         // check there's no record
         let user_before = sqlx::query("SELECT * FROM users")
@@ -327,7 +340,7 @@ mod tests {
             email: "test@gmail.com".to_string(),
             password: "password".to_string(),
         };
-        register_user(&pool, new_user, &uuid_example).await.unwrap();
+        register_user(&pool, new_user, &uid_example).await.unwrap();
 
         // check the user is inserted
         let user_after = sqlx::query!("SELECT * FROM users")
@@ -347,11 +360,11 @@ mod tests {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
 
-        let uuid = Uuid::new_v4();
+        let uid = Uuid::new_v4();
 
         //insert predataset
         sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
-			.bind(uuid)
+			.bind(uid)
 			.execute(&pool)
 			.await
 			.unwrap();
