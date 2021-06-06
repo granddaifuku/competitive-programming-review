@@ -1,5 +1,5 @@
 use super::infrastructures;
-use super::model::NewUser;
+use super::model::{LoginUser, NewUser};
 use crate::error::{extract_field, ApiError};
 use actix_web::{get, post, web, HttpResponse};
 use anyhow::Result;
@@ -86,6 +86,25 @@ pub async fn verify_user(
             }
         }
     }
+    Ok(HttpResponse::Ok().json(""))
+}
+
+#[post("/log-in")]
+pub async fn log_in(
+    pool: web::Data<PgPool>,
+    form: web::Form<LoginUser>,
+) -> Result<HttpResponse, ApiError> {
+    match form.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            return Err(ApiError::ValidationError {
+                fields: extract_field(e),
+            })
+        }
+    }
+
+    // search the user from users table
+
     Ok(HttpResponse::Ok().json(""))
 }
 
