@@ -117,6 +117,16 @@ pub async fn register_user(pool: &PgPool, user: NewUser, uid: &Uuid) -> Result<(
     Ok(())
 }
 
+pub async fn search_user(pool: &PgPool, user_name: &str) -> Result<String, bool> {
+    let user = sqlx::query!("SELECT password FROM users WHERE user_name = $1", user_name)
+        .fetch_optional(pool)
+        .await;
+    match user.unwrap() {
+        None => Err(true),
+        Some(u) => Ok(u.password),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +340,33 @@ mod tests {
         assert_eq!("password".to_string(), user_after[0].password);
 
         utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn search_user_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+
+        let uuid = Uuid::new_v4();
+
+        //insert predataset
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+			.bind(uuid)
+			.execute(&pool)
+			.await
+			.unwrap();
+        let expected = "password".to_string();
+        let actual = search_user(&pool, "test_user").await.unwrap();
+        assert_eq!(expected, actual);
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn search_user_not_exist() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let result = search_user(&pool, "test_user").await.unwrap_err();
+        assert!(result);
     }
 }
