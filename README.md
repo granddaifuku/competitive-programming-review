@@ -15,3 +15,6 @@
 
 1. Enter DB
 - Run `./manage.sh enterdb`
+
+2. Clear table
+- Run `./manage.sh cleartable`
