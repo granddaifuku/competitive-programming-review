@@ -22,6 +22,9 @@ pub enum ApiError {
     #[display(fmt = "timeout")]
     Timeout,
 
+    #[display(fmt = "unauthorized")]
+    Unauthorized,
+
     #[display(fmt = "validation error on field: {:?}", fields)]
     ValidationError { fields: Vec<String> },
 }
@@ -41,6 +44,7 @@ impl error::ResponseError for ApiError {
             ApiError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiError::BadRequest => StatusCode::BAD_REQUEST,
             ApiError::Timeout => StatusCode::GATEWAY_TIMEOUT,
+            ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiError::ValidationError { .. } => StatusCode::BAD_REQUEST,
         }
     }
