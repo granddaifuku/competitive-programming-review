@@ -104,6 +104,16 @@ pub async fn log_in(
     }
 
     // search the user from users table
+    match infrastructures::search_user(pool.get_ref(), &form.user_name).await {
+        Ok(password) => (),
+        Err(f) => {
+            if f {
+                return Err(ApiError::BadRequest);
+            } else {
+                return Err(ApiError::InternalError);
+            }
+        }
+    }
 
     Ok(HttpResponse::Ok().json(""))
 }
