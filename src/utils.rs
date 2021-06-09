@@ -14,6 +14,7 @@ pub async fn clear_table(pool: &PgPool) -> Result<()> {
         "users".to_string(),
         "reviews".to_string(),
         "tmp_users".to_string(),
+        "auth".to_string(),
     ];
     for table in tables {
         // cannot bind the table and thus prepare the sql
@@ -60,6 +61,13 @@ mod tests {
 			.await
 			.unwrap();
 
+        sqlx::query(r#"INSERT INTO auth (token, uid, created_at) VALUES ('dummy_token', $1, $2)"#)
+            .bind(uid)
+            .bind(now)
+            .execute(&pool)
+            .await
+            .unwrap();
+
         // check correctly inserted
         let users_before = sqlx::query("SELECT * FROM users")
             .fetch_all(&pool)
@@ -76,6 +84,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(1, tmp_users_before.len());
+        let auth_before = sqlx::query("SELECT * FROM auth")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(1, auth_before.len());
 
         clear_table(&pool).await.unwrap();
 
@@ -95,5 +108,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(0, tmp_users_after.len());
+        let auth_after = sqlx::query("SELECT * FROM auth")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert_eq!(0, auth_after.len());
     }
 }

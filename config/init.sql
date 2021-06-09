@@ -31,3 +31,12 @@ CREATE TABLE tmp_users (
   created_at TIMESTAMP NOT NULL,
   PRIMARY KEY (id)
 );
+
+DROP TABLE IF EXISTS auth;
+CREATE TABLE auth (
+  token VARCHAR(255) NOT NULL,
+  uid UUID NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  PRIMARY KEY (token)
+)
+
