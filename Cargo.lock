@@ -620,6 +620,7 @@ dependencies = [
  "derive_more",
  "lazy_static",
  "lettre",
+ "rand 0.8.3",
  "regex",
  "serde",
  "serde_json",
