@@ -117,13 +117,20 @@ pub async fn register_user(pool: &PgPool, user: NewUser, uid: &Uuid) -> Result<(
     Ok(())
 }
 
-pub async fn search_user(pool: &PgPool, user_name: &str) -> Result<String, bool> {
+pub async fn search_user(pool: &PgPool, user_name: &str) -> Result<NewUser, ()> {
     let user = sqlx::query!("SELECT password FROM users WHERE user_name = $1", user_name)
         .fetch_optional(pool)
         .await;
     match user.unwrap() {
-        None => Err(true),
-        Some(u) => Ok(u.password),
+        None => Err(()),
+        Some(u) => {
+            let user = NewUser {
+                user_name: u.user_name,
+                email: u.email,
+                password: u.password,
+            };
+            Ok(user)
+        }
     }
 }
 
@@ -368,7 +375,11 @@ mod tests {
 			.execute(&pool)
 			.await
 			.unwrap();
-        let expected = "password".to_string();
+        let expected = NewUser {
+            user_name: "test_user".to_string(),
+            email: "test@gmail.com".to_string(),
+            password: "password".to_string(),
+        };
         let actual = search_user(&pool, "test_user").await.unwrap();
         assert_eq!(expected, actual);
 
@@ -379,7 +390,7 @@ mod tests {
     async fn search_user_not_exist() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
-        let result = search_user(&pool, "test_user").await.unwrap_err();
+        let result = search_user(&pool, "test_user").await.is_err();
         assert!(result);
     }
 }

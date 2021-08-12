@@ -3,6 +3,7 @@ use super::model::{LoginUser, NewUser};
 use crate::error::{extract_field, ApiError};
 use actix_web::{get, post, web, HttpResponse};
 use anyhow::Result;
+use bcrypt::verify;
 use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
@@ -92,9 +93,9 @@ pub async fn verify_user(
 #[post("/log-in")]
 pub async fn log_in(
     pool: web::Data<PgPool>,
-    form: web::Form<LoginUser>,
+    user_info: web::Json<LoginUser>,
 ) -> Result<HttpResponse, ApiError> {
-    match form.validate() {
+    match user_info.validate() {
         Ok(_) => (),
         Err(e) => {
             return Err(ApiError::ValidationError {
@@ -104,15 +105,17 @@ pub async fn log_in(
     }
 
     // search the user from users table
-    match infrastructures::search_user(pool.get_ref(), &form.user_name).await {
-        Ok(password) => (),
-        Err(f) => {
-            if f {
-                return Err(ApiError::BadRequest);
-            } else {
-                return Err(ApiError::InternalError);
+    // TODO consider the way to distinguish BadRequest in the following
+    match infrastructures::search_user(pool.get_ref(), &user_info.user_name).await {
+        Ok(user) => match verify(&user_info.user_name, &user.password) {
+            Ok(_) => {
+                // Issue the Session ID and store it to Cookie
             }
-        }
+            Err(_) => {
+                return Err(ApiError::BadRequest);
+            }
+        },
+        Err(_) => return Err(ApiError::BadRequest),
     }
 
     Ok(HttpResponse::Ok().json(""))
