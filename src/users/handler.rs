@@ -1,12 +1,16 @@
 use super::infrastructures;
 use super::model::{LoginUser, NewUser};
 use crate::error::{extract_field, ApiError};
+use actix_session::Session;
 use actix_web::{get, post, web, HttpResponse};
 use anyhow::Result;
 use bcrypt::verify;
+use rand_core::{OsRng, RngCore};
 use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
+
+static AUTH_TOKEN: &str = "X-auth-token";
 
 #[post("/sign-up")]
 pub async fn sign_up(
@@ -92,6 +96,7 @@ pub async fn verify_user(
 
 #[post("/log-in")]
 pub async fn log_in(
+    session: Session,
     pool: web::Data<PgPool>,
     user_info: web::Json<LoginUser>,
 ) -> Result<HttpResponse, ApiError> {
@@ -110,6 +115,17 @@ pub async fn log_in(
         Ok(user) => match verify(&user_info.user_name, &user.password) {
             Ok(_) => {
                 // Issue the Session ID and store it to Cookie
+                let mut key = [0u8; 32]; // 32 bit
+                OsRng.fill_bytes(&mut key);
+                let auth_token = base64::encode(&key);
+                match session.set(AUTH_TOKEN, auth_token.clone()) {
+                    Ok(_) => {
+                        return Ok(HttpResponse::Ok().json(""));
+                    }
+                    Err(_) => {
+                        return Err(ApiError::InternalError);
+                    }
+                }
             }
             Err(_) => {
                 return Err(ApiError::BadRequest);
@@ -117,21 +133,20 @@ pub async fn log_in(
         },
         Err(_) => return Err(ApiError::BadRequest),
     }
-
-    Ok(HttpResponse::Ok().json(""))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{config, utils};
+    use actix_redis::RedisSession;
     use actix_web::{body::Body, test, App};
     use bcrypt::verify;
     use chrono::Utc;
     use serde_json::json;
 
     #[actix_rt::test]
-    async fn user_name_invalid_min_length() {
+    async fn sign_up_user_name_invalid_min_length() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -157,7 +172,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn user_name_invalid_max_length() {
+    async fn sign_up_user_name_invalid_max_length() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -183,7 +198,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn user_name_invalid_character() {
+    async fn sign_up_user_name_invalid_character() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -209,7 +224,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn email_invalid() {
+    async fn sign_up_email_invalid() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -233,7 +248,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn password_invalid_min_length() {
+    async fn sign_up_password_invalid_min_length() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -259,7 +274,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn password_invalid_max_length() {
+    async fn sign_up_password_invalid_max_length() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -285,7 +300,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn password_invalid_character() {
+    async fn sign_up_password_invalid_character() {
         let config = config::Config::new();
         let pool = PgPool::connect(&config.database_url).await.unwrap();
         let mut app = test::init_service(App::new().data(pool.clone()).service(sign_up)).await;
@@ -491,5 +506,195 @@ mod tests {
         assert_eq!(uid, user[0].uid);
 
         utils::clear_table(&pool).await.unwrap();
+    }
+
+    //
+    // we cannot run following tests because of this the version of actix_rt. See https://github.com/actix/actix-extras/issues/154.
+    //
+
+    #[actix_rt::test]
+    async fn login_user_name_invalid_min_length() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+            user_name: "".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_user_name_invalid_max_length() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+    		user_name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+    		password: "password".to_string(),
+		};
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_user_name_invalid_character() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+            user_name: "aaaあaaa".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"user_name\"]"})
+            ),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_password_invalid_min_length() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+            user_name: "user_name".to_string(),
+            password: "".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_password_invalid_max_length() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+    		user_name: "user_name".to_string(),
+    		password: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+    	};
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_password_invalid_character() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+            user_name: "user_name".to_string(),
+            password: "aaaあaaa".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(
+                json!({"code": 400, "message": "validation error on field: [\"password\"]"})
+            ),
+            resp_body
+        );
     }
 }

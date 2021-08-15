@@ -118,9 +118,12 @@ pub async fn register_user(pool: &PgPool, user: NewUser, uid: &Uuid) -> Result<(
 }
 
 pub async fn search_user(pool: &PgPool, user_name: &str) -> Result<NewUser, ()> {
-    let user = sqlx::query!("SELECT password FROM users WHERE user_name = $1", user_name)
-        .fetch_optional(pool)
-        .await;
+    let user = sqlx::query!(
+        "SELECT user_name, password, email FROM users WHERE user_name = $1",
+        user_name
+    )
+    .fetch_optional(pool)
+    .await;
     match user.unwrap() {
         None => Err(()),
         Some(u) => {

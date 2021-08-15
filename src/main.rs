@@ -1,4 +1,3 @@
-mod auth;
 mod config;
 mod error;
 mod users;
@@ -7,6 +6,7 @@ mod utils;
 #[macro_use]
 extern crate lazy_static;
 
+use actix_redis::RedisSession;
 use actix_web::{App, HttpServer};
 use anyhow::Result;
 use sqlx::postgres::PgPool;
@@ -18,9 +18,11 @@ async fn main() -> Result<()> {
     let pool = PgPool::connect(&config.database_url).await?;
     HttpServer::new(move || {
         App::new()
+            .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
             .data(pool.clone())
             .service(users::handler::sign_up)
             .service(users::handler::verify_user)
+            .service(users::handler::log_in)
     })
     .bind("127.0.0.1:8000")?
     .run()
