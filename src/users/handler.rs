@@ -120,6 +120,7 @@ pub async fn log_in(
                 let auth_token = base64::encode(&key);
                 match session.set(AUTH_TOKEN, auth_token.clone()) {
                     Ok(_) => {
+                        session.renew();
                         return Ok(HttpResponse::Ok().json(""));
                     }
                     Err(_) => {
@@ -508,9 +509,8 @@ mod tests {
         utils::clear_table(&pool).await.unwrap();
     }
 
-    //
-    // we cannot run following tests because of this the version of actix_rt. See https://github.com/actix/actix-extras/issues/154.
-    //
+    // Cannot run following tests with the latest version of sqlx because of the version of actix_rt.
+    // See https://github.com/actix/actix-extras/issues/154.
 
     #[actix_rt::test]
     async fn login_user_name_invalid_min_length() {
@@ -696,5 +696,107 @@ mod tests {
             ),
             resp_body
         );
+    }
+
+    #[actix_rt::test]
+    async fn login_not_registered_user() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        let user = LoginUser {
+            user_name: "user_name".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(json!({"code": 400, "message": "bad request"})),
+            resp_body
+        );
+    }
+
+    #[actix_rt::test]
+    async fn login_verification_failed() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        // insert predataset
+        let uid = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+			.bind(&uid)
+			.execute(&pool)
+			.await
+			.unwrap();
+        let user = LoginUser {
+            user_name: "user_name".to_string(),
+            password: "incorrect_password_example".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(400, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(
+            &Body::from(json!({"code": 400, "message": "bad request"})),
+            resp_body
+        );
+
+        utils::clear_table(&pool).await.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn login_ok() {
+        let config = config::Config::new();
+        let pool = PgPool::connect(&config.database_url).await.unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .wrap(RedisSession::new("127.0.0.1:6379", &[0; 32]).cookie_name("test-session"))
+                .data(pool.clone())
+                .service(log_in),
+        )
+        .await;
+        // insert predataset
+        let uid = Uuid::new_v4();
+        sqlx::query(r#"INSERT INTO users (id, user_name, password, email, uid) VALUES (0, 'test_user', 'password', 'test@gmail.com', $1)"#)
+			.bind(&uid)
+			.execute(&pool)
+			.await
+			.unwrap();
+        let user = LoginUser {
+            user_name: "user_name".to_string(),
+            password: "password".to_string(),
+        };
+        let req = test::TestRequest::post()
+            .uri("/log-in")
+            .set_json(&user)
+            .to_request();
+        let mut resp = test::call_service(&mut app, req).await;
+        assert_eq!(200, resp.status());
+        let resp_body = resp.take_body();
+        let resp_body = resp_body.as_ref().unwrap();
+        assert_eq!(&Body::from(json!("")), resp_body);
+
+        utils::clear_table(&pool).await.unwrap();
     }
 }
